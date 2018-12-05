@@ -100,5 +100,17 @@ def generateSets(summary):
             trainingSetIndex.append(k)
             
     return trainingSet, testSet, testSetIndex, trainingSetIndex
+
+
+#taken and modified from: 
+#https://stackoverflow.com/questions/9797357/dividing-a-string-at-various-punctuation-marks-using-split
+
+#TODO: modify logic to group punctuation marks. At the moment this will parse
+#'??' into a sentence of 2 indices, with a '?' at each index. We want to group
+#the punctuations if possible as glove has a vector for sequences of only
+#punctuation marks.
+def parseSentence(text):
+    sentence = ("".join((char if char.isalnum() else (" "+ char + " ")) for char in text).split())
     
+    return sentence
     
