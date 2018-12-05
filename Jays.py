@@ -105,12 +105,37 @@ def generateSets(summary):
 #taken and modified from: 
 #https://stackoverflow.com/questions/9797357/dividing-a-string-at-various-punctuation-marks-using-split
 
-#TODO: modify logic to group punctuation marks. At the moment this will parse
-#'??' into a sentence of 2 indices, with a '?' at each index. We want to group
-#the punctuations if possible as glove has a vector for sequences of only
-#punctuation marks.
+#This function splits the sentence by spaces and punctuation marks. Punctuation
+#marks refer to non-alphanumeric characters that can appear validly inside
+#of the English sentence. One exception to this rule is the string "'s" as this
+#has it's own vector inside of the glove pretrained vector set. Therefore, this
+#particular string will get it's own index. 
+#@Param: text- the text to be parsed. This must a valid English block of text,
+#              as in, it must be readable to the everyday person
+#@Retuen: sentence - a list containing the parsed version of the input text.
+#                    Each index of this will contain either a punctuation mark
+#                    by itself, the string "'s" by itself, or an English word.
 def parseSentence(text):
     sentence = ("".join((char if char.isalnum() else (" "+ char + " ")) for char in text).split())
+    
+    #join the instances of "'s" and ONLY "'s"
+    i = 0
+    while i in range (len(sentence)):
+        if(sentence[i] == "'" and sentence[i+1] == 's'):
+            sentence[i] = "'s"
+            sentence.pop(i+1)
+            i += 1
+            
+    #join the rest of the punctuation marks. AKA non-alphanumeric characters
+    j = 0
+    while j in range (len(sentence)): 
+        if(sentence[j] != "'s" and not sentence[j].isalnum()):
+            k = j+1
+            while (k in range (len(sentence)) and not sentence[k].isalnum()):
+                sentence[j] = sentence[j] + sentence[k]
+                sentence.pop(k)
+        
+        j += 1
     
     return sentence
     
