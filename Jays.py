@@ -1,5 +1,5 @@
 import numpy as np
-import pandas
+import pandas as pd
 import random
 #source: https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
 
@@ -35,7 +35,7 @@ def parseCSV(csvFile):
     columns = ['title', 'summary', 'score']
     
     #reading the file to parse
-    csv_data = pandas.read_csv(csvFile, names = columns)
+    csv_data = pd.read_csv(csvFile, names = columns)
     
     #stores the respective data in lists
     title = csv_data.title.tolist()
@@ -124,7 +124,7 @@ def parseSentence(text):
         if(sentence[i] == "'" and sentence[i+1] == 's'):
             sentence[i] = "'s"
             sentence.pop(i+1)
-            i += 1
+        i += 1
             
     #join the rest of the punctuation marks. AKA non-alphanumeric characters
     j = 0
@@ -135,7 +135,7 @@ def parseSentence(text):
                 sentence[j] = sentence[j] + sentence[k]
                 sentence.pop(k)
         
-        j += 1
+    j += 1
     
     return sentence
     
