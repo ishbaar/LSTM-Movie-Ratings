@@ -135,7 +135,7 @@ def parseSentence(text):
                 sentence[j] = sentence[j] + sentence[k]
                 sentence.pop(k)
         
-    j += 1
+        j += 1
     
     return sentence
     
