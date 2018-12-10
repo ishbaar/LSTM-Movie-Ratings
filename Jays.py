@@ -4,6 +4,7 @@ import csv
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.autograd import Variable
 #source: https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
 
 #This function takes in the path to the glove 50d pretrained vectors that is
@@ -46,7 +47,7 @@ def parseCSV(csvFile):
     summary = []
     score = []
     
-    for i in range(1, len(read_list)):
+    for i in range(1, 11):
         title.append(read_list[i][0])
         summary.append(read_list[i][1])
         score.append(float(read_list[i][2]))
@@ -150,6 +151,49 @@ def parseSentence(text):
     
     return sentence
     
-def LSTM():
-    model = loadGloveModel('glove.6B.50d.txt')
+def LSTM(vec_dict):
+    model = vec_dict
+    title, summary, score = parseCSV('tmdb_5000_movies_modified.csv')
+    trainingSet, testSet, testSetIndex, trainingSetIndex = generateSets(summary)
+    
+    inputs = []
+    #for each summary inside of out trainingSet
+    for i in range(len(trainingSet)):
+        parsed_summary = parseSentence(trainingSet[i])
+        
+        #For each word, punctuation, or instance of 's
+        for j in range(len(parsed_summary)):
+            #Make sure the string exists inside of the glove model
+            if(parsed_summary[j] in model):
+                inputs.append(torch.from_numpy(model[parsed_summary[j]]).float())
+
+    torch.manual_seed(1)            
     lstm = nn.LSTM(50, 50)
+    
+    hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+    
+    
+    for k in inputs:
+        out, hidden = lstm(k.view(1, 1,-1), hidden)
+        
+    #print(out)
+    print(hidden[0])
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
