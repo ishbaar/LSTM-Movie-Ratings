@@ -1,6 +1,9 @@
 import numpy as np
 import random
 import csv
+import torch
+import torch.nn as nn
+import torch.optim as optim
 #source: https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
 
 #This function takes in the path to the glove 50d pretrained vectors that is
@@ -70,7 +73,7 @@ def parseCSV(csvFile):
 def generateSets(summary):
     #definition of constants throughout this function
     training_percentage = .8
-    list_size = len(summary)
+    list_size = len(summary) - 1
     
     #initialize the things to return
     testSetIndex = []
@@ -147,3 +150,6 @@ def parseSentence(text):
     
     return sentence
     
+def LSTM():
+    model = loadGloveModel('glove.6B.50d.txt')
+    lstm = nn.LSTM(50, 50)
