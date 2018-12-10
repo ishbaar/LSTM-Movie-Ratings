@@ -1,6 +1,6 @@
 import numpy as np
-import pandas as pd
 import random
+import csv
 #source: https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
 
 #This function takes in the path to the glove 50d pretrained vectors that is
@@ -32,16 +32,21 @@ def loadGloveModel(gloveFile):
 #          score - a list of all the scores (voter averages) inside of csvFile
 def parseCSV(csvFile):
     #define the column names
-    columns = ['title', 'summary', 'score']
     
     #reading the file to parse
-    csv_data = pd.read_csv(csvFile, names = columns)
+    with open(csvFile, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        read_list = list(reader)
     
     #stores the respective data in lists
-    title = csv_data.title.tolist()
-    summary = csv_data.summary.tolist()
-    score = csv_data.score.tolist()
+    title = []
+    summary = []
+    score = []
     
+    for i in range(len(read_list)):
+        title.append(read_list[i][0])
+        summary.append(read_list[i][1])
+        score.append(read_list[i][2])
     #because the first index of each list is the header, we get rid of
     #the first element in each list
     title.pop(0)
@@ -136,6 +141,11 @@ def parseSentence(text):
                 sentence.pop(k)
         
         j += 1
+    
+    #Because the glove database is all lowercase, we need to lowercase everything
+    for k in range(len(sentence)):
+        sentence[k] = sentence[k].lower()
+    
     
     return sentence
     
