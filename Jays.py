@@ -43,15 +43,13 @@ def parseCSV(csvFile):
     summary = []
     score = []
     
-    for i in range(len(read_list)):
+    for i in range(1, len(read_list)):
         title.append(read_list[i][0])
         summary.append(read_list[i][1])
-        score.append(read_list[i][2])
+        score.append(float(read_list[i][2]))
     #because the first index of each list is the header, we get rid of
     #the first element in each list
-    title.pop(0)
-    summary.pop(0)
-    score.pop(0)
+
     
     return title, summary, score
 
