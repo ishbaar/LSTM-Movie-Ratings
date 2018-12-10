@@ -127,7 +127,7 @@ def parseSentence(text):
     #join the instances of "'s" and ONLY "'s"
     i = 0
     while i in range (len(sentence)):
-        if(sentence[i] == "'" and sentence[i+1] == 's'):
+        if(sentence[i] == "'" and i+1 in range(len(sentence)) and sentence[i+1] == 's'):
             sentence[i] = "'s"
             sentence.pop(i+1)
         i += 1
