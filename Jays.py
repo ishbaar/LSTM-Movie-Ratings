@@ -47,7 +47,7 @@ def parseCSV(csvFile):
     summary = []
     score = []
     
-    for i in range(1, 11):
+    for i in range(1, 2000):
         title.append(read_list[i][0])
         summary.append(read_list[i][1])
         score.append(float(read_list[i][2]))
@@ -177,11 +177,137 @@ def LSTM(vec_dict):
         out, hidden = lstm(k.view(1, 1,-1), hidden)
         
     #print(out)
-    print(hidden[0])
+    return hidden[0]
+    
+# https://pytorch.org/tutorials/beginner/examples_nn/two_layer_net_module.html
+# https://www.kaggle.com/pinocookie/pytorch-simple-mlp
+class MLP(nn.Module):
+    def __init__(self):
+        super(MLP, self).__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(50, 40),
+            nn.Sigmoid(),
+            nn.Linear(40, 30),
+            nn.ReLU(),
+            nn.Linear(30, 20),
+            nn.Sigmoid(),
+            nn.Linear(20, 10),
+            nn.ReLU(),
+            nn.Linear(10, 1),
+        )
+        
+    def forward(self, x):
+
+        
+        x = self.layers(x)
+        return x
+    
+def train(vec_dict):
+    #define our constants
+    vec_model = vec_dict
+    mlp_model = MLP()
+    optimizer = torch.optim.Adam(mlp_model.parameters(), lr=0.001)
+    loss_fn = torch.nn.MSELoss()
+    title, summary, score = parseCSV('tmdb_5000_movies_modified.csv')
+    trainingSet, testSet, testSetIndex, trainingSetIndex = generateSets(summary)
+    torch.manual_seed(1)
+    lstm = nn.LSTM(50,50)
+   
+    
+######################### START TRAINING ######################################
+    
+    #For each training set
+    for i in range(len(trainingSet)):
+        parsed_summary = parseSentence(trainingSet[i])
+        associated_index = trainingSetIndex[i]
+        inputs = []
+        
+        #populate the input list with our word embeddings
+        for j in range(len(parsed_summary)):
+            #Make sure the string exists inside of the glove model
+            if(parsed_summary[j] in vec_model):
+                inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
+                
+        #initialize hidden states
+        hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+        
+        #for each index inside of our inputs, we input it into the lstm sequentially
+        for k in inputs:
+            out, hidden = lstm(k.view(1, 1,-1), hidden)
+            
+        #we do not use the cell state, so we need to call hidden[0] when inputting
+        #into MLP
+        predicted_value = mlp_model(hidden[0])
+        
+        #use associated_index to find the true value inside of our score list
+        actual_value = torch.tensor(score[associated_index], requires_grad=True)
+        
+        #clears the gradient as Pytorch accumulates gradients
+        optimizer.zero_grad()
+        
+        #find our total loss
+        loss = loss_fn(predicted_value, actual_value)
+        
+        #gradient descent
+        loss.backward()
+        optimizer.step()
+        
+######################### END TRAINING #######################################
+    
+######################### START TESTING ######################################
+    
+    #This list will store the difference between our predicted value vs actual
+    differences = []
+    
+    #For each test set
+    for i in range(len(testSet)):
+        parsed_summary = parseSentence(testSet[i])
+        associated_index = testSetIndex[i]
+        inputs = []
+        
+        #populate the input list with our word embeddings
+        for j in range(len(parsed_summary)):
+            #Make sure the string exists inside of the glove model
+            if(parsed_summary[j] in vec_model):
+                inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
+                
+        #initialize hidden states
+        hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+        
+        #for each index inside of our inputs, we input it into the lstm sequentially
+        for k in inputs:
+            out, hidden = lstm(k.view(1, 1,-1), hidden)
+            
+        #we do not use the cell state, so we need to call hidden[0] when inputting
+        #into MLP
+        predicted_value = mlp_model(hidden[0]).item()
+        actual_value = score[associated_index]
+        
+        #create a tuple (difference of actual vs pred, index of movie)
+        
+        temp_tuple = (predicted_value - actual_value, associated_index)
+        differences.append(temp_tuple)
+        
+######################### END TESTING ######################################
     
     
     
+    #test_parsed_summary = parseSentence(summary[0])
+    #test_parsed_score = torch.tensor([[score[0]]], requires_grad=True)
     
+    #inputs = []
+    #for l in range(len(test_parsed_summary)):
+    #    if(test_parsed_summary[l] in vec_model):
+     #       inputs.append(torch.from_numpy(vec_model[test_parsed_summary[l]]).float())
+        
+    #hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+        
+    #for h in inputs:
+    #    out, hidden = lstm(k.view(1, 1,-1), hidden)  
+        
+    #predicted_test_score = mlp_model(hidden[0])
+    #print(test_parsed_score)
+    #print(predicted_test_score.item())
     
     
     
