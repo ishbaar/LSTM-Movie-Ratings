@@ -47,7 +47,7 @@ def parseCSV(csvFile):
     summary = []
     score = []
     
-    for i in range(1, 2000):
+    for i in range(1, len(read_list)):
         title.append(read_list[i][0])
         summary.append(read_list[i][1])
         score.append(float(read_list[i][2]))
@@ -185,15 +185,25 @@ class MLP(nn.Module):
     def __init__(self):
         super(MLP, self).__init__()
         self.layers = nn.Sequential(
-            nn.Linear(50, 40),
-            nn.Sigmoid(),
-            nn.Linear(40, 30),
+            nn.Linear(50, 100),
             nn.ReLU(),
-            nn.Linear(30, 20),
-            nn.Sigmoid(),
-            nn.Linear(20, 10),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(10, 1),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 50),
+            nn.ReLU(),
+            nn.Linear(50, 25),
+            nn.ReLU(),
+            nn.Linear(25, 12),
+            nn.ReLU(),
+            nn.Linear(12, 3),
+            nn.ReLU(),
+            nn.Linear(3, 1),
         )
         
     def forward(self, x):
@@ -229,7 +239,7 @@ def train(vec_dict):
                 inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
                 
         #initialize hidden states
-        hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+        hidden = (torch.ones(1, 1, 50), torch.ones(1, 1, 50))
         
         #for each index inside of our inputs, we input it into the lstm sequentially
         for k in inputs:
@@ -258,7 +268,7 @@ def train(vec_dict):
     
     #This list will store the difference between our predicted value vs actual
     differences = []
-    
+    total_difference = 0
     #For each test set
     for i in range(len(testSet)):
         parsed_summary = parseSentence(testSet[i])
@@ -272,7 +282,7 @@ def train(vec_dict):
                 inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
                 
         #initialize hidden states
-        hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
+        hidden = (torch.ones(1, 1, 50), torch.ones(1, 1, 50))
         
         #for each index inside of our inputs, we input it into the lstm sequentially
         for k in inputs:
@@ -284,9 +294,26 @@ def train(vec_dict):
         actual_value = score[associated_index]
         
         #create a tuple (difference of actual vs pred, index of movie)
-        
-        temp_tuple = (predicted_value - actual_value, associated_index)
+
+        temp_tuple = (abs(predicted_value - actual_value), associated_index)
+        total_difference += abs(predicted_value - actual_value)
         differences.append(temp_tuple)
+    return differences
+
+def calculate_accuracy(differences):
+    max_diff = differences[0][0]
+    max_diff_index = 0
+    size = len(differences)
+    num_correct = 0
+    MARGIN_ERROR = .25
+    for element in differences:
+        if element[0] > max_diff:
+            max_diff = element[0]
+            max_diff_index = element[1]
+        diff = element[0]
+        if diff <= MARGIN_ERROR:
+            num_correct += 1
+    return num_correct/size, max_diff, max_diff_index
         
 ######################### END TESTING ######################################
     
