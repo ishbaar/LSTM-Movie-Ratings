@@ -3,11 +3,10 @@ import random
 import csv
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.autograd import Variable
+
 #source: https://stackoverflow.com/questions/37793118/load-pretrained-glove-vectors-in-python
 
-#This function takes in the path to the glove 50d pretrained vectors that is
+#This function takes in the path to the glove pretrained vectors that is
 #originally stored as a .txt and then converts it into a dictionary. To access
 #a certain vector of a certain word, use the word as the key, and the dictionary
 #will return the vector.
@@ -108,7 +107,6 @@ def generateSets(summary):
             
     return trainingSet, testSet, testSetIndex, trainingSetIndex
 
-
 #taken and modified from: 
 #https://stackoverflow.com/questions/9797357/dividing-a-string-at-various-punctuation-marks-using-split
 
@@ -117,6 +115,7 @@ def generateSets(summary):
 #of the English sentence. One exception to this rule is the string "'s" as this
 #has it's own vector inside of the glove pretrained vector set. Therefore, this
 #particular string will get it's own index. 
+#
 #@Param: text- the text to be parsed. This must a valid English block of text,
 #              as in, it must be readable to the everyday person
 #@Retuen: sentence - a list containing the parsed version of the input text.
@@ -150,42 +149,19 @@ def parseSentence(text):
     
     
     return sentence
-    
-def LSTM(vec_dict):
-    model = vec_dict
-    title, summary, score = parseCSV('tmdb_5000_movies_modified.csv')
-    trainingSet, testSet, testSetIndex, trainingSetIndex = generateSets(summary)
-    
-    inputs = []
-    #for each summary inside of out trainingSet
-    for i in range(len(trainingSet)):
-        parsed_summary = parseSentence(trainingSet[i])
-        
-        #For each word, punctuation, or instance of 's
-        for j in range(len(parsed_summary)):
-            #Make sure the string exists inside of the glove model
-            if(parsed_summary[j] in model):
-                inputs.append(torch.from_numpy(model[parsed_summary[j]]).float())
 
-    torch.manual_seed(1)            
-    lstm = nn.LSTM(50, 50)
-    
-    hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
-    
-    
-    for k in inputs:
-        out, hidden = lstm(k.view(1, 1,-1), hidden)
-        
-    #print(out)
-    return hidden[0]
-    
-# https://pytorch.org/tutorials/beginner/examples_nn/two_layer_net_module.html
-# https://www.kaggle.com/pinocookie/pytorch-simple-mlp
+#Definition of our MLP model. The input layer has input size of glove_dim which
+#is the dimensionality of the GloVe dataset we are currently using. This has 5
+#hidden layers, all with 100 nodes and a output layer of 1, which is our predicted
+#user rating(voter average)
+#
+#@Param: glove_dim - the dimensionality of the GloVe dataset we are currently using
 class MLP(nn.Module):
-    def __init__(self):
+    def __init__(self, glove_dim):
         super(MLP, self).__init__()
         self.layers = nn.Sequential(
-            nn.Linear(50, 100),
+            #Input layer: dimension of GloVe embedding we are currently using
+            nn.Linear(glove_dim, 100),
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),
@@ -195,33 +171,48 @@ class MLP(nn.Module):
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(100, 50),
-            nn.ReLU(),
-            nn.Linear(50, 25),
-            nn.ReLU(),
-            nn.Linear(25, 12),
-            nn.ReLU(),
-            nn.Linear(12, 3),
-            nn.ReLU(),
-            nn.Linear(3, 1),
+            #output layer: 1
+            nn.Linear(100, 1),
         )
         
     def forward(self, x):
-
-        
         x = self.layers(x)
         return x
     
-def train(vec_dict):
-    #define our constants
+#This function defines a LSTM and a MLP and trains the MLP in order to generate
+#predicted ratings for a given summary. It takes in the dictionary that contains
+#all the GloVe pre-trained word embeddings. It first calls parseCSV to parse the
+#CSV file containing all the movies. Then it calls generateSets to define our
+#test and training sets. For each summary inside of our training set, it feeds
+#the summary into the LSTM and then uses the final hidden state as the vector
+#representation for the entire summary. The MLP takes in this vector and generates
+#a predicted rating. We perform SGD on the loss function in order to train the MLP.
+#After training, for every test set, the MLP predicts a rating and then the
+#difference is appended to a list and the list is returned after going through
+#all the test sets.
+#
+#@Param: vec_dict - the dictonary containing the GloVe pre-trained vector representations
+#                   of words
+#        vec_dict_dim - the dimensionality of the GloVe dataset you are using.
+#                       Should be one of the following numbers: 50, 100, 200, 300
+#@Return: differences - A list containing tuples of:
+#                       (abs(predicted_value - actual_value),
+#                       the index of where this difference occured)
+def train(vec_dict, vec_dict_dim):
+    #Define our constants
     vec_model = vec_dict
-    mlp_model = MLP()
-    optimizer = torch.optim.Adam(mlp_model.parameters(), lr=0.001)
     loss_fn = torch.nn.MSELoss()
     title, summary, score = parseCSV('tmdb_5000_movies_modified.csv')
     trainingSet, testSet, testSetIndex, trainingSetIndex = generateSets(summary)
     torch.manual_seed(1)
-    lstm = nn.LSTM(50,50)
+    
+
+    glove_dim = vec_dict_dim
+    
+    #Define our models 
+    mlp_model = MLP(glove_dim)
+    optimizer = torch.optim.SGD(mlp_model.parameters(), lr=0.001)
+    lstm = nn.LSTM(glove_dim,glove_dim)
    
     
 ######################### START TRAINING ######################################
@@ -239,7 +230,7 @@ def train(vec_dict):
                 inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
                 
         #initialize hidden states
-        hidden = (torch.ones(1, 1, 50), torch.ones(1, 1, 50))
+        hidden = (torch.ones(1, 1, glove_dim), torch.ones(1, 1, glove_dim))
         
         #for each index inside of our inputs, we input it into the lstm sequentially
         for k in inputs:
@@ -268,7 +259,6 @@ def train(vec_dict):
     
     #This list will store the difference between our predicted value vs actual
     differences = []
-    total_difference = 0
     #For each test set
     for i in range(len(testSet)):
         parsed_summary = parseSentence(testSet[i])
@@ -282,7 +272,7 @@ def train(vec_dict):
                 inputs.append(torch.from_numpy(vec_model[parsed_summary[j]]).float())
                 
         #initialize hidden states
-        hidden = (torch.ones(1, 1, 50), torch.ones(1, 1, 50))
+        hidden = (torch.ones(1, 1, glove_dim), torch.ones(1, 1, glove_dim))
         
         #for each index inside of our inputs, we input it into the lstm sequentially
         for k in inputs:
@@ -292,49 +282,62 @@ def train(vec_dict):
         #into MLP
         predicted_value = mlp_model(hidden[0]).item()
         actual_value = score[associated_index]
-        
-        #create a tuple (difference of actual vs pred, index of movie)
 
         temp_tuple = (abs(predicted_value - actual_value), associated_index)
-        total_difference += abs(predicted_value - actual_value)
         differences.append(temp_tuple)
+        
+######################### END TESTING ########################################
+        
     return differences
 
+#This function takes in the differences list from the train() function and it
+#outputs the accuracy of the testing, the maximum difference, and the index at
+#where this maximum difference occured.
+#
+#@Param: differences - the list returned by the function train(). This should
+#                      be a list containing tuples of the form:
+#                      (abs(predicted_value - actual_value), 
+#                       index at where this difference occured)
+#@Return: final_accuracy - A float that represents the accuracy of our testing
+#         max_diff - The maximum difference inside of the list difference
+#         max_diff_index - the index at where max_diff occurs
 def calculate_accuracy(differences):
+    #initialize the differences to the first element
     max_diff = differences[0][0]
-    max_diff_index = 0
+    max_diff_index = differences[0][1]
+
+    #initialize our constant
     size = len(differences)
+    
+    #initialize our counter
     num_correct = 0
+    
+    #definition of what is "accurate". Anything <= MARGIN_ERROR is deemed accurate.
     MARGIN_ERROR = .25
+    
+    #iterate through the list of differences
     for element in differences:
+        
+        #check for maximum difference
         if element[0] > max_diff:
             max_diff = element[0]
             max_diff_index = element[1]
+            
+        #this gets the difference in predicted vs actual
         diff = element[0]
+        
         if diff <= MARGIN_ERROR:
             num_correct += 1
-    return num_correct/size, max_diff, max_diff_index
+    
+    #accuracy = (accurate predictions / size of list)
+    final_accuracy = num_correct/size
+    
+    return final_accuracy, max_diff, max_diff_index
         
-######################### END TESTING ######################################
     
     
     
-    #test_parsed_summary = parseSentence(summary[0])
-    #test_parsed_score = torch.tensor([[score[0]]], requires_grad=True)
-    
-    #inputs = []
-    #for l in range(len(test_parsed_summary)):
-    #    if(test_parsed_summary[l] in vec_model):
-     #       inputs.append(torch.from_numpy(vec_model[test_parsed_summary[l]]).float())
-        
-    #hidden = (torch.randn(1, 1, 50), torch.randn(1, 1, 50))
-        
-    #for h in inputs:
-    #    out, hidden = lstm(k.view(1, 1,-1), hidden)  
-        
-    #predicted_test_score = mlp_model(hidden[0])
-    #print(test_parsed_score)
-    #print(predicted_test_score.item())
+
     
     
     
